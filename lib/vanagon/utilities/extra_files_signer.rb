@@ -19,11 +19,12 @@ class Vanagon
             remote_host = "#{project.signing_username}@#{project.signing_hostname}"
             remote_destination_path = "#{remote_host}:#{tempdir}"
             remote_file_location = "#{remote_host}:#{file_location}"
+            ex_flags = extra_flags(project.platform)
 
             commands += [
-              "rsync -e '#{Vanagon::Utilities.ssh_command}' --verbose --recursive --hard-links --links  --no-perms --no-owner --no-group #{local_source_path} #{remote_destination_path}",
-              "#{Vanagon::Utilities.ssh_command} #{remote_host} #{project.signing_command} #{file_location}",
-              "rsync -e '#{Vanagon::Utilities.ssh_command}' --verbose --recursive --hard-links --links  --no-perms --no-owner --no-group #{remote_file_location} #{local_source_path}"
+              "rsync -e '#{Vanagon::Utilities.ssh_command}' --verbose --recursive --hard-links --links  --no-perms --no-owner --no-group #{ex_flags} #{local_source_path} #{remote_destination_path}",
+              "#{Vanagon::Utilities.ssh_command} #{remote_host} '#{project.signing_command} #{file_location}'",
+              "rsync -e '#{Vanagon::Utilities.ssh_command}' --verbose --recursive --hard-links --links  --no-perms --no-owner --no-group #{ex_flags} #{remote_file_location} #{local_source_path}"
             ]
           end
 
@@ -32,6 +33,18 @@ class Vanagon
           require 'vanagon/logger'
           VanagonLogger.error "Unable to connect to #{project.signing_username}@#{project.signing_hostname}, skipping signing extra files: #{project.extra_files_to_sign.join(',')}"
           []
+        end
+
+        private
+
+        def extra_flags(platform)
+          return '' unless platform.is_macos?
+
+          if platform.os_version =~ /^10\./
+            '--extended-attributes'
+          else
+            '--rsync-path=/usr/local/bin/rsync3 --xattrs'
+          end
         end
       end
     end
